@@ -7,8 +7,6 @@ import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.File;
-import java.io.RandomAccessFile;
 import java.net.URL;
 import java.util.LinkedList;
 
@@ -30,7 +28,6 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     private Image imaImagenFondo;        // para dibujar la imagen de fondo
     private Image imaImagenGameOver;        // para dibujar la imagen de game over
     private LinkedList<Base> lklMalitos;       //lista de los malos
-    private LinkedList<Base> lklBuenos;       //lista de los buenos
 
     /* objetos para manejar el buffer del Applet y 
        que la imagen no parpadee */
@@ -38,7 +35,6 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     private Graphics graGraficaApplet;  // Objeto grafico de la Imagen
 
     private SoundClip SClipSonidoMalos;  // Objeto SoundClip colision malos
-    private SoundClip SClipSonidoBuenos; // Objeto SoundClip colision buenos
 
     //private boolean bClicked;           //  Boleana para uso del mouse
     private int iNewX;                  //  Variable para saber la X nueva
@@ -47,6 +43,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     private int iVidas;                  // Las vidas del personaje.
     private int iScore;                  //mantiene la cuenta del score.
     private int iColMalos;           //mantiene la cuenta de cuantos malos han tocado al personaje.
+    private int iVelMalo;                // La velocidad del malo.
 
     public JFrames() {
 
@@ -76,22 +73,22 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         //Define el tamaño inicial de la ventana
         setSize(1200, 800);
         
-                // se inicializan la velocidad, bCamina y la dirección con un valor default
+        // se inicializan la velocidad, bCamina y la dirección con un valor default
         iNewX = 0;
         iNewY = 0;
 
         // se inicializan las vidas con un valor aleatorio entre 3 y 5.
-        iVidas = (int) (Math.random() * 3) + 3;
+        iVidas = 5;
 
         //se inicializan el score y el contador de asteroides
         iScore = 0;
         iColMalos = 0;
+        
+        //se inicializa la velocidad con la que se mueve el malo
+        iVelMalo = 1;
 
         //Creo la lista de los Malos
         lklMalitos = new LinkedList<Base>();
-
-        //Creo la lista de los Buenos
-        lklBuenos = new LinkedList<Base>();
 
         // Creo la imagen de fondo.
         URL urlImagenFondo = this.getClass().getResource("Fondo.png");
@@ -109,9 +106,6 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
 
         //Se crea el sonido del choque con el malo.
         SClipSonidoMalos = new SoundClip("Choque.wav");
-
-        //Se crea el sonido de la colision con la moneda (bueno).
-        SClipSonidoBuenos = new SoundClip("coin.wav");
 
         //funcion para inicializar los objetos de las listas
         initObjetos();
@@ -143,18 +137,6 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
             lklMalitos.add(basMalo);
         }
 
-        //defino la imagen de los objetos Buenos
-        URL urlImagenBueno = this.getClass().getResource("moneda.gif");
-        //genero aleatoriamente el numero de buenos (entre 10 y 15)
-        int iRandomBuenos = (int) (Math.random() * 6) + 10;
-        // Creo los objetos buenos
-        for (int iI = 0; iI < iRandomBuenos; iI++) {
-            //creo a cada bueno
-            Base basBueno = new Base(0, 0, Toolkit.getDefaultToolkit().getImage(urlImagenBueno));
-
-            //agrego a cada bueno a la lista.
-            lklBuenos.add(basBueno);
-        }
     }
 
     /**
@@ -165,7 +147,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     public void posicionInicial() {
         // Posiciono al personaje en el centro.
         iNewX = getWidth() / 2 - basPrincipal.getAncho() / 2;
-        iNewY = getHeight() / 2 - basPrincipal.getAlto() / 2;
+        iNewY = getHeight() - basPrincipal.getAlto();
 
         // Se ponen los valores es basPrincipal
         basPrincipal.setX(iNewX);
@@ -175,26 +157,13 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         int iPosMaloX, iPosMaloY;
         //posiciono a los malos
         for (Base basMalo : lklMalitos) {
-            // Se obtienen valores aleatorios para la X y la Y del asteroides
-            iPosMaloX = getWidth() + ((int) (Math.random() * (getWidth() + 1)));
-            iPosMaloY = getHeight() - basMalo.getAlto() - (int) (Math.random() * (getHeight() - basMalo.getAlto()));
+            // Se obtienen valores aleatorios para la X y la Y del asteroide
+            iPosMaloX = getWidth() - basMalo.getAncho() - (int)(Math.random()*(getWidth()- basMalo.getAncho()));
+            iPosMaloY = 2*(-(int)(Math.random()*(getHeight()- basMalo.getAlto())));
 
             // Se ponen los valores anteriores en basMalo
             basMalo.setX(iPosMaloX);
             basMalo.setY(iPosMaloY);
-        }
-
-        //variables para las posiciones iniciales de los buenos.
-        int iPosBuenoX, iPosBuenoY;
-        //posiciono a los malos
-        for (Base basBueno : lklBuenos) {
-            // Se obtienen valores aleatorios para la X y la Y del asteroides
-            iPosBuenoX = -3 / 2 * ((int) (Math.random() * getWidth()));
-            iPosBuenoY = getHeight() - basBueno.getAlto() - (int) (Math.random() * (getHeight() - basBueno.getAlto()));
-
-            // Se ponen los valores anteriores en basMalo
-            basBueno.setX(iPosBuenoX);
-            basBueno.setY(iPosBuenoY);
         }
 
     }
@@ -209,33 +178,12 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         int iPosMaloX, iPosMaloY;
 
         // Se obtienen valores aleatorios para la X y la Y del asteroide
-        iPosMaloX = getWidth() + ((int) (Math.random() * (getWidth() + 1)));
-        iPosMaloY = getHeight() - basMalo.getAlto() - (int) (Math.random() * (getHeight() - basMalo.getAlto()));
+        iPosMaloX = getWidth() - basMalo.getAncho() - (int)(Math.random()*(getWidth()- basMalo.getAncho()));
+        iPosMaloY = 2*(-(int)(Math.random()*(getHeight()- basMalo.getAlto()))); 
 
         // Se ponen los valores anteriores en basMalo
         basMalo.setX(iPosMaloX);
         basMalo.setY(iPosMaloY);
-
-    }
-
-    /**
-     * reposicionaBueno
-     *
-     * reposiciona a los buenos
-     */
-    public void reposicionaBueno(Base basBueno) {
-        // variables de la posicion del bueno
-        int iPosBuenoX, iPosBuenoY;
-
-        // Se obtienen valores aleatorios para la X y la Y del bueno
-        iPosBuenoX = -3 / 2 * ((int) (Math.random() 
-                * (getWidth() - basBueno.getAncho())));
-        iPosBuenoY = getHeight() - basBueno.getAlto() 
-                - (int) (Math.random() * (getHeight() - basBueno.getAlto()));
-
-        // Se ponen los valores anteriores en basBueno
-        basBueno.setX(iPosBuenoX);
-        basBueno.setY(iPosBuenoY);
 
     }
 
@@ -299,35 +247,21 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         if (iNewX < 0) {
             iNewX = 0;
         }
-        //reviso que no se salga por arriba
-        if (iNewY < 0) {
-            iNewY = 0;
-        }
         //reviso que no se salga por la derecha
         if ((iNewX + basPrincipal.getAncho()) > getWidth()) {
             iNewX = getWidth() - basPrincipal.getAncho();
         }
-        //reviso que no se salga por abajo
-        if ((iNewY + basPrincipal.getAlto()) > getHeight()) {
-            iNewY = getHeight() - basPrincipal.getAlto();
-        }
 
         // posiciona al personaje dependiendo de la tecla presionada.
         basPrincipal.setX(iNewX);
-        basPrincipal.setY(iNewY);
 
-        // mueve al enemigo hacia la izquierda de la pantalla
-        for (Base basMalo : lklMalitos) {
-            //los objetos malos se mueven hacia la izquierda de manera aleatoria (3 a 5)
-            basMalo.setX(basMalo.getX() - ((int) (Math.random() * 3) + 3));
-        }
-
-        // mueve a los buenos hacia la derecha de la pantalla
-        for (Base basBueno : lklBuenos) {
-            //los objetos buenos se mueven de manera aleatoria (1 a 3) a la derecha
-            basBueno.setX(basBueno.getX() + ((int) (Math.random() * 3) + 1));
+        // mueve al enemigo hacia abajo de la pantalla
+        for(Base basMalo : lklMalitos)
+        {
+                basMalo.setY(basMalo.getY() + iVelMalo);
 
         }
+
     }
 
     /**
@@ -356,37 +290,31 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
                     iColMalos = 0;
                     //genera un sonido cuando choca con el malo
                     SClipSonidoMalos.play();
+                    iVelMalo++;
                 }
             }
 
             //reviso que el malo no se salga por el lado izquierdo del applet
-            if (basMalo.getX() < 0) {
+            if (basMalo.getY() >= getHeight()) {
                 //reposiciono al malo que se salga de la imagen
                 reposicionaMalo(basMalo);
-            }
-
-        }
-
-        //checo la colision entre principal y malo
-        for (Base basBueno : lklBuenos) {
-
-            //checo si colisiono el personaje con el malo
-            if (basPrincipal.colisiona(basBueno)) {
-                //reposiciono al malo que choco contra el personaje.
-                reposicionaBueno(basBueno);
+                
                 //aumento el contador de malos colisionados.
-                iScore += 10;
+                iColMalos++;
 
-                //genera un sonido cuando colisiona
-                SClipSonidoBuenos.play();
-
+                //si la cantidad de malos pasa el limite se pierde una vida
+                if (iColMalos >= 5) {
+                    //redusco una vida del personaje
+                    iVidas--;
+                    //reseteo el valor del contador de malos para volver a empezar a contar.  
+                    iColMalos = 0;
+                    //genera un sonido cuando choca con el malo
+                    SClipSonidoMalos.play();
+                    iVelMalo++;
+                }
             }
 
-            //reviso que si el bueno se sale de la pantalla se reposiciona
-            if (basBueno.getX() > getWidth()) {
-                //reposiciono al bueno que se salga de la imagen
-                reposicionaBueno(basBueno);
-            }
+        
 
         }
     }
@@ -455,20 +383,13 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
                 basMalo.paint(graDibujo, this);
             }
 
-            //pinto a los personajes buenos
-            for (Base basBueno : lklBuenos) {
-                basBueno.paint(graDibujo, this);
-            }
-
             //Cambio el tipo de letra, el color y escribo el score del jugador
             graDibujo.setFont(new Font("TimesRoman", Font.BOLD, 30));
             graDibujo.setColor(Color.green);
-            graDibujo.drawString("Score:", 10, 70);
-            graDibujo.drawString(String.valueOf(iScore), 105, 70);
 
             //escribo en el applet el numero de vidas.
-            graDibujo.drawString("Vidas:", 10, 95);
-            graDibujo.drawString(String.valueOf(iVidas), 105, 95);
+            graDibujo.drawString("Vidas:", 10, 70);
+            graDibujo.drawString(String.valueOf(iVidas), 105, 70);
 
         } // sino se ha cargado se dibuja un mensaje 
         else {
@@ -487,35 +408,21 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     public void keyPressed(KeyEvent keyEvent) {
         //switch para mover al el personaje en forma diagonal
         switch (keyEvent.getKeyCode()) {
-            //muevo al personaje en direccion hacia el noroeste
-            case KeyEvent.VK_Q:
+            //muevo al personaje hacia la izquierda con la flecha izquierda
+            case KeyEvent.VK_LEFT:
                 iNewX -= 5;
-                iNewY -= 5;
                 break;
-            //muevo al personaje en direccion hacia noreste
-            case KeyEvent.VK_P:
+            //muevo al personaje hacia la derecha con la flecha derecha
+            case KeyEvent.VK_RIGHT:
                 iNewX += 5;
-                iNewY -= 5;
                 break;
-            //muevo al personaje en direccion hacia el sudoeste        
-            case KeyEvent.VK_A:
+            //muevo al personaje hacia la izquierda con la flecha izquierda del teclado numerico
+            case KeyEvent.VK_KP_LEFT:
                 iNewX -= 5;
-                iNewY += 5;
                 break;
-            //muevo al personaje en direccion hacia el sudeste
-            case KeyEvent.VK_L:
+            //muevo al personaje hacia la derecha con la flecha derecha del teclado numerico
+            case KeyEvent.VK_KP_RIGHT:
                 iNewX += 5;
-                iNewY += 5;
-                break;
-            case KeyEvent.VK_G:
-                if(iVidas>0){
-                guardar();
-                }
-                break;
-            case KeyEvent.VK_C:
-                if(iVidas>0){
-                cargar();
-                }
                 break;
             default:
                 break;
@@ -535,119 +442,4 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         holaMundo.setVisible(true);
     }
 
-    public void guardar() {
-        RandomAccessFile rafSalida;
-        try {
-            //escribir los datos del personaje principal, vidas y score
-        rafSalida = new RandomAccessFile(new File("guardado.dat"),"rw");
-        rafSalida.writeInt(iNewX);
-        rafSalida.writeInt(iNewY);
-        rafSalida.writeInt(iVidas);
-        rafSalida.writeInt(iScore);
-        rafSalida.writeInt(iColMalos);
-        rafSalida.writeInt(lklMalitos.size());
-        //se guarda la posicion de los malos
-        guardarMalos(rafSalida);
-        //Escribe los datos de los buenos
-        rafSalida.writeInt(lklBuenos.size());
-        guardarBuenos(rafSalida);
-        rafSalida.close();
-        } catch (Exception e) {
-            System.out.println("Error de IO "+e);
-        }
-    }
-    /**
-     * guarda las posiciones de los malos en el random access file de salida
-     * @param rafSalida 
-     */
-    public void guardarMalos(RandomAccessFile rafSalida){
-        //escribe los datos de los malos
-        try{
-        for(Base basMalo : lklMalitos){//para cada malo se guardan las posiciones
-            rafSalida.writeInt(basMalo.getX());
-            rafSalida.writeInt(basMalo.getY());
-        }
-        }catch(Exception e){
-            
-        }
-    }
-    /**
-     * guarda las posiciones de los buenos en el random access file de salida
-     * @param rafSalida 
-     */
-    public void guardarBuenos(RandomAccessFile rafSalida){
-        try{
-        for(Base basBueno : lklBuenos){//para cada bueno se guardan las posiciones
-            rafSalida.writeInt(basBueno.getX());
-            rafSalida.writeInt(basBueno.getY());
-        }
-        }catch(Exception e){
-            
-        }
-    }
-    public void cargar(){
-      RandomAccessFile rafEntrada;
-      try{
-          rafEntrada = new RandomAccessFile(new File("guardado.dat"),"rw");
-          //se leen los datos basicos del juego
-          iNewX = rafEntrada.readInt();
-          iNewY = rafEntrada.readInt();
-          iVidas = rafEntrada.readInt();
-          iScore = rafEntrada.readInt();
-          iColMalos = rafEntrada.readInt();
-          //se leen los datos de los malos
-          cargarMalos(rafEntrada);
-          //se leen los datos de los buenos IDEM a los malos
-          cargarBuenos(rafEntrada);
-          //cerrar el archivo
-          rafEntrada.close();
-      }catch (Exception e){
-         System.out.println("error en IO "+e); 
-      }
-    }
-    /**
-     * cargarBuenos
-     * 
-     * lee del archivo binario rafEntrada las posiciones de los objetos buenos
-     * @param rafEntrada 
-     */
-    public void cargarBuenos(RandomAccessFile rafEntrada){
-        try{
-        URL urlImagenBueno = this.getClass().getResource("moneda.gif");
-          int iCantidadBuenos = rafEntrada.readInt();//leer cuantos obj buenos
-          lklBuenos.clear();//limpiar la linked list
-          for(int iC=0;iC < iCantidadBuenos;iC++){
-              //para cada objeto bueno se lee su posicion y se agrega a la lkl
-              Base basNuevo = new Base(0,0,
-                      Toolkit.getDefaultToolkit().getImage(urlImagenBueno));
-              basNuevo.setX(rafEntrada.readInt());
-              basNuevo.setY(rafEntrada.readInt());
-              lklBuenos.add(basNuevo);
-          }
-        }catch(Exception e){
-            
-        }
-    }
-    /**
-     * lee del archivo binario rafEntrada las posiciones de los objetos malops
-     * @param rafEntrada 
-     */
-    public void cargarMalos(RandomAccessFile rafEntrada){
-        try{
-            int iCantidadMalos = rafEntrada.readInt();
-          //se leen los datos de los malos, como la cantidad y posiciones
-          lklMalitos.clear();
-          URL urlImagenMalo = this.getClass().getResource("block.gif");
-          
-          for(int iC = 0;iC < iCantidadMalos;iC++){
-              Base basNuevo = new Base(0, 0,
-                Toolkit.getDefaultToolkit().getImage(urlImagenMalo));
-              basNuevo.setX(rafEntrada.readInt());
-              basNuevo.setY(rafEntrada.readInt());
-              lklMalitos.add(basNuevo);
-          }
-        }catch(Exception e){
-            
-        }
-    }
 }
