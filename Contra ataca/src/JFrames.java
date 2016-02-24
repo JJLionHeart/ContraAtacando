@@ -8,6 +8,7 @@ import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.net.URL;
+import java.util.ConcurrentModificationException;
 import java.util.LinkedList;
 
 /*
@@ -20,30 +21,38 @@ import java.util.LinkedList;
  * @author José Humberto Guevara Martínez
  * @author Juan José López Jaimez
  * @version 1.0
- * 
+ *
  */
 public class JFrames extends JFrame implements Runnable, KeyListener {
 
     private Base basPrincipal;         // Objeto principal
     private Image imaImagenFondo;        // para dibujar la imagen de fondo
-    private Image imaImagenGameOver;        // para dibujar la imagen de game over
+    private Image imaImagenGameOver;      // para dibujar la imagen de game over
+    private Image imaVidas; //para dibujar a las vidas
+    private Image imaShotNormal, imaShotDerecha, imaShotIzquierda; //imagenes de
+    //disparos
     private LinkedList<Base> lklMalitos;       //lista de los malos
-
+    private LinkedList<Shot> lklDisparos; // lista de los disparos generados
     /* objetos para manejar el buffer del Applet y 
        que la imagen no parpadee */
     private Image imaImagenApplet;   // Imagen a proyectar en Applet	
+    private Image imaPausa; //imagen para dibuajar durante la pausa
     private Graphics graGraficaApplet;  // Objeto grafico de la Imagen
 
     private SoundClip SClipSonidoMalos;  // Objeto SoundClip colision malos
-
+    private SoundClip SClipPause; //sonido para la pausa eaeaea
     //private boolean bClicked;           //  Boleana para uso del mouse
     private int iNewX;                  //  Variable para saber la X nueva
     private int iNewY;                   //  Variable para saber la Y nueva
 
     private int iVidas;                  // Las vidas del personaje.
     private int iScore;                  //mantiene la cuenta del score.
-    private int iColMalos;           //mantiene la cuenta de cuantos malos han tocado al personaje.
+    private int iColMalos;          //mantiene la cuenta de cuantos malos 
+    //han tocado al personaje.
     private int iVelMalo;                // La velocidad del malo.
+
+    private boolean boolDisparar; //para evitar que dispare a lo loco
+    private boolean boolPause; //para pausar el juego, por default false
 
     public JFrames() {
 
@@ -55,24 +64,23 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
 
         //Se manda a llamar el init de variables
         init();
-        
+
         //Se manda a llamar el thread
         start();
     }
-    
-    
-    /** 
+
+    /**
      * init
-     * 
+     *
      * Metodo sobrescrito de la clase <code>Applet</code>.<P>
-     * En este metodo se inizializan las variables o se crean los objetos
-     * a usarse en el <code>Applet</code> y se definen funcionalidades.
-     * 
+     * En este metodo se inizializan las variables o se crean los objetos a
+     * usarse en el <code>Applet</code> y se definen funcionalidades.
+     *
      */
     public void init() {
         //Define el tamaño inicial de la ventana
-        setSize(1200, 800);
-        
+        setSize(800, 600);
+
         // se inicializan la velocidad, bCamina y la dirección con un valor default
         iNewX = 0;
         iNewY = 0;
@@ -83,12 +91,15 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         //se inicializan el score y el contador de asteroides
         iScore = 0;
         iColMalos = 0;
-        
+
         //se inicializa la velocidad con la que se mueve el malo
         iVelMalo = 1;
 
         //Creo la lista de los Malos
         lklMalitos = new LinkedList<Base>();
+
+        //se crea la lista de disparos
+        lklDisparos = new LinkedList<Shot>();
 
         // Creo la imagen de fondo.
         URL urlImagenFondo = this.getClass().getResource("Fondo.png");
@@ -100,19 +111,37 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
 
         // defino la imagen principal
         URL urlImagenPrincipal = this.getClass().getResource("mariojump.gif");
+
+        //cargar la imagen de las vidas
+        URL urlVidas = this.getClass().getResource("heartg.png");
+        imaVidas = Toolkit.getDefaultToolkit().getImage(urlVidas);
+
+        //cargar imagenes de los disparos
+        URL urlDisparoNormal = this.getClass().getResource("ShotNormal.gif");
+        URL urlDisparoDerecha = this.getClass().getResource("ShotS.gif");
+        URL urlDisparoIzquierda = this.getClass().getResource("shotA.gif");
+        imaShotNormal = Toolkit.getDefaultToolkit().getImage(urlDisparoNormal);
+        imaShotDerecha = Toolkit.getDefaultToolkit()
+                .getImage(urlDisparoDerecha);
+        imaShotIzquierda = Toolkit.getDefaultToolkit()
+                .getImage(urlDisparoIzquierda);
+        //se inicializa la imagen de pausa
+        URL urlPause = this.getClass().getResource("imgPause.jpg");
+        imaPausa = Toolkit.getDefaultToolkit().getImage(urlPause);
         // Creo el objeto para principal 
         basPrincipal = new Base(0, 0,
                 Toolkit.getDefaultToolkit().getImage(urlImagenPrincipal));
 
         //Se crea el sonido del choque con el malo.
         SClipSonidoMalos = new SoundClip("Choque.wav");
-
+        //se inicializa el sonido de pausa
+        SClipPause = new SoundClip("Pausa.wav");
         //funcion para inicializar los objetos de las listas
         initObjetos();
 
         //funcion para posicionar inicialmente los personajes.
         posicionInicial();
-
+        boolPause = false;
         // funcion para poder utilizar el teclado.
         addKeyListener(this);
     }
@@ -130,7 +159,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         // Creo los objetos malos
         for (int iI = 0; iI < iRandomMalos; iI++) {
             //creo a cada Malo
-            Base basMalo = new Base(0, 0, 
+            Base basMalo = new Base(0, 0,
                     Toolkit.getDefaultToolkit().getImage(urlImagenMalo));
 
             //agrego a cada malo a la lista.
@@ -158,8 +187,10 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         //posiciono a los malos
         for (Base basMalo : lklMalitos) {
             // Se obtienen valores aleatorios para la X y la Y del asteroide
-            iPosMaloX = getWidth() - basMalo.getAncho() - (int)(Math.random()*(getWidth()- basMalo.getAncho()));
-            iPosMaloY = 2*(-(int)(Math.random()*(getHeight()- basMalo.getAlto())));
+            iPosMaloX = getWidth() - basMalo.getAncho()
+                    - (int) (Math.random() * (getWidth() - basMalo.getAncho()));
+            iPosMaloY = 2 * (-(int) (Math.random()
+                    * (getHeight() - basMalo.getAlto())));
 
             // Se ponen los valores anteriores en basMalo
             basMalo.setX(iPosMaloX);
@@ -178,8 +209,9 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         int iPosMaloX, iPosMaloY;
 
         // Se obtienen valores aleatorios para la X y la Y del asteroide
-        iPosMaloX = getWidth() - basMalo.getAncho() - (int)(Math.random()*(getWidth()- basMalo.getAncho()));
-        iPosMaloY = 2*(-(int)(Math.random()*(getHeight()- basMalo.getAlto()))); 
+        iPosMaloX = getWidth() - basMalo.getAncho()
+                - (int) (Math.random() * (getWidth() - basMalo.getAncho()));
+        iPosMaloY = 2 * (-(int) (Math.random() * (getHeight() - basMalo.getAlto())));
 
         // Se ponen los valores anteriores en basMalo
         basMalo.setX(iPosMaloX);
@@ -187,24 +219,22 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
 
     }
 
-    /** 
+    /**
      * start
-     * 
+     *
      * Metodo sobrescrito de la clase <code>Applet</code>.<P>
-     * En este metodo se crea e inicializa el hilo
-     * para la animacion este metodo es llamado despues del init o 
-     * cuando el usuario visita otra pagina y luego regresa a la pagina
-     * en donde esta este <code>Applet</code>
-     * 
+     * En este metodo se crea e inicializa el hilo para la animacion este metodo
+     * es llamado despues del init o cuando el usuario visita otra pagina y
+     * luego regresa a la pagina en donde esta este <code>Applet</code>
+     *
      */
-    public void start () {
+    public void start() {
         // Declaras un hilo
-        Thread th = new Thread (this);
+        Thread th = new Thread(this);
         // Empieza el hilo
-        th.start ();
+        th.start();
     }
-    
-    
+
     /**
      * run
      *
@@ -241,27 +271,41 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      *
      */
     public void actualiza() {
+        if (!boolPause) { //si no esta en pausa el juego
+            //no permito que el principal se pase de las "paredes"
+            //reviso que no se salga por la izquierda
+            if (iNewX < 0) {
+                iNewX = 0;
+            }
+            //reviso que no se salga por la derecha
+            if ((iNewX + basPrincipal.getAncho()) > getWidth()) {
+                iNewX = getWidth() - basPrincipal.getAncho();
+            }
 
-        //no permito que el principal se pase de las "paredes"
-        //reviso que no se salga por la izquierda
-        if (iNewX < 0) {
-            iNewX = 0;
-        }
-        //reviso que no se salga por la derecha
-        if ((iNewX + basPrincipal.getAncho()) > getWidth()) {
-            iNewX = getWidth() - basPrincipal.getAncho();
-        }
+            // posiciona al personaje dependiendo de la tecla presionada.
+            basPrincipal.setX(iNewX);
 
-        // posiciona al personaje dependiendo de la tecla presionada.
-        basPrincipal.setX(iNewX);
-
-        // mueve al enemigo hacia abajo de la pantalla
-        for(Base basMalo : lklMalitos)
-        {
+            // mueve al enemigo hacia abajo de la pantalla
+            for (Base basMalo : lklMalitos) {
                 basMalo.setY(basMalo.getY() + iVelMalo);
 
-        }
+            }
+            //se mueven los disparos
+            int iSize = lklDisparos.size();
+            for (int iC = 0; iC < iSize; iC++) {
+                Shot shoDisparo = lklDisparos.pop();
+                //si el disparo sigue dentro del room se dibuja
+                if (shoDisparo.getX() <= getWidth() && shoDisparo.getX() >= 0
+                        && shoDisparo.getY() <= getHeight() && shoDisparo.getY() >= 0) {
+                    shoDisparo.mover();
+                    lklDisparos.add(shoDisparo);
 
+                } else {
+                    //si no, no se muestra en pantalla
+                    shoDisparo.out();
+                }
+            }
+        }
     }
 
     /**
@@ -271,51 +315,67 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      *
      */
     public void checaColision() {
+        if (!boolPause) {//si no esta en pause el juego
+            //checo la colision entre principal y malo
+            for (Base basMalo : lklMalitos) {
 
-        //checo la colision entre principal y malo
-        for (Base basMalo : lklMalitos) {
+                //checo si colisiono el personaje con el malo
+                if (basPrincipal.colisiona(basMalo)) {
+                    //se resta un punto
+                    iScore--;
+                    //reposiciono al malo que choco contra el personaje.
+                    reposicionaMalo(basMalo);
+                    //aumento el contador de malos colisionados.
+                    iColMalos++;
 
-            //checo si colisiono el personaje con el malo
-            if (basPrincipal.colisiona(basMalo)) {
-                //reposiciono al malo que choco contra el personaje.
-                reposicionaMalo(basMalo);
-                //aumento el contador de malos colisionados.
-                iColMalos++;
+                    //si la cantidad de malos pasa el limite se pierde una vida
+                    if (iColMalos >= 5) {
+                        //redusco una vida del personaje
+                        iVidas--;
+                        //reseteo el valor del contador de malos para 
+                        //volver a empezar a contar.  
+                        iColMalos = 0;
+                        //genera un sonido cuando choca con el malo
+                        SClipSonidoMalos.play();
+                        iVelMalo++;
+                    }
+                }
 
-                //si la cantidad de malos pasa el limite se pierde una vida
-                if (iColMalos >= 5) {
-                    //redusco una vida del personaje
-                    iVidas--;
-                    //reseteo el valor del contador de malos para volver a empezar a contar.  
-                    iColMalos = 0;
-                    //genera un sonido cuando choca con el malo
-                    SClipSonidoMalos.play();
-                    iVelMalo++;
+                //reviso que el malo no se salga por el lado izquierdo del applet
+                if (basMalo.getY() >= getHeight()) {
+                    //reposiciono al malo que se salga de la imagen
+                    reposicionaMalo(basMalo);
+
+                    //aumento el contador de malos colisionados.
+                    iColMalos++;
+
+                    //si la cantidad de malos pasa el limite se pierde una vida
+                    if (iColMalos >= 5) {
+                        //redusco una vida del personaje
+                        iVidas--;
+                        //reseteo el valor del contador de malos 
+                        //para volver a empezar a contar.  
+                        iColMalos = 0;
+                        //genera un sonido cuando choca con el malo
+                        SClipSonidoMalos.play();
+                        iVelMalo++;
+
+                    }
                 }
             }
 
-            //reviso que el malo no se salga por el lado izquierdo del applet
-            if (basMalo.getY() >= getHeight()) {
-                //reposiciono al malo que se salga de la imagen
-                reposicionaMalo(basMalo);
-                
-                //aumento el contador de malos colisionados.
-                iColMalos++;
-
-                //si la cantidad de malos pasa el limite se pierde una vida
-                if (iColMalos >= 5) {
-                    //redusco una vida del personaje
-                    iVidas--;
-                    //reseteo el valor del contador de malos para volver a empezar a contar.  
-                    iColMalos = 0;
-                    //genera un sonido cuando choca con el malo
-                    SClipSonidoMalos.play();
-                    iVelMalo++;
+        }
+        //se checa la colision entre los misiles y los obstaculos
+        for (Shot shoDisparo : lklDisparos) {
+            for (Base basObstaculo : lklMalitos) {
+                if (shoDisparo.colisiona(basObstaculo)) {
+                    //si hay una colision de este disparo y este obstaculo
+                    //se aumenta el puntaje y se "destruyen" ambos objetos
+                    iScore += 10;
+                    reposicionaMalo(basObstaculo);
+                    shoDisparo.setX(-100);
                 }
             }
-
-        
-
         }
     }
 
@@ -328,24 +388,29 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      * @param graGrafico es el <code>objeto grafico</code> usado para dibujar.
      *
      */
-    
-    public void paint(Graphics graGrafico) {
+    public void paint(Graphics graGrafico)
+            throws ConcurrentModificationException {
 
         // Inicializan el DoubleBuffer
-        if (imaImagenApplet == null){
-                imaImagenApplet = createImage (this.getSize().width, 
-                        this.getSize().height);
-                graGraficaApplet = imaImagenApplet.getGraphics ();
+        if (imaImagenApplet == null) {
+            imaImagenApplet = createImage(this.getSize().width,
+                    this.getSize().height);
+            graGraficaApplet = imaImagenApplet.getGraphics();
         }
-        
+
         // Actualiza la imagen de fondo.
         URL urlImagenFondo = this.getClass().getResource("Fondo.png");
-        Image imaImagenFondo = Toolkit.getDefaultToolkit().getImage(urlImagenFondo);
+        Image imaImagenFondo = Toolkit.getDefaultToolkit()
+                .getImage(urlImagenFondo);
         graGraficaApplet.drawImage(imaImagenFondo, 0, 0, getWidth(), getHeight(), this);
 
         // Actualiza el Foreground.
         graGraficaApplet.setColor(getForeground());
-        paint1(graGraficaApplet);
+        try {
+            paint1(graGraficaApplet);
+        } catch (Exception e) {
+
+        }
 
         // Dibuja la imagen actualizada
         graGrafico.drawImage(imaImagenApplet, 0, 0, this);
@@ -362,18 +427,20 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      * dibujar.
      *
      */
-    public void paint1(Graphics graDibujo) {
-        
+    public void paint1(Graphics graDibujo)
+            throws ConcurrentModificationException {
+
         //Dibujo la imagen de game over cuando se acaban las vidas.
         if (iVidas == 0) {
             graDibujo.drawImage(imaImagenGameOver, 0, 0, getWidth(), getHeight(), this);
-        }
-        else
-        {
-        // si la imagen ya se cargo
-        if (basPrincipal != null && imaImagenFondo != null && lklMalitos != null) {
+        } else if (boolPause) {
+            graDibujo.drawImage(imaPausa, 0, 0, getWidth(), getHeight(), this);
+        } else // si la imagen ya se cargo
+        if (basPrincipal != null && imaImagenFondo != null
+                && lklMalitos != null && lklDisparos != null) {
             // Dibuja la imagen de fondo
-            graDibujo.drawImage(imaImagenFondo, 0, 0, getWidth(), getHeight(), this);
+            graDibujo.drawImage(imaImagenFondo, 0, 0, getWidth(), getHeight(),
+                    this);
 
             //Dibuja la imagen 
             basPrincipal.paint(graDibujo, this);
@@ -382,20 +449,27 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
             for (Base basMalo : lklMalitos) {
                 basMalo.paint(graDibujo, this);
             }
-
+            //se pintan los disparos
+            for (Shot shoDisparo : lklDisparos) {
+                if (shoDisparo.getActivo()) {
+                    shoDisparo.paint(graDibujo, this);
+                }
+            }
             //Cambio el tipo de letra, el color y escribo el score del jugador
             graDibujo.setFont(new Font("TimesRoman", Font.BOLD, 30));
             graDibujo.setColor(Color.green);
 
             //escribo en el applet el numero de vidas.
-            graDibujo.drawString("Vidas:", 10, 70);
-            graDibujo.drawString(String.valueOf(iVidas), 105, 70);
-
+            graDibujo.drawString("Vidas: ", 10, 70);
+            for (int iC = 0; iC < iVidas; iC++) {
+                graDibujo.drawImage(imaVidas, 105 + (iC * 25), 53, this);
+            }
+            graDibujo.setColor(Color.red);
+            graDibujo.drawString("Puntaje: " + String.valueOf(iScore), getWidth() - 200, 70);
         } // sino se ha cargado se dibuja un mensaje 
         else {
             //Da un mensaje mientras se carga el dibujo	
             graDibujo.drawString("No se cargo la imagen..", 20, 20);
-        }
         }
     }
 
@@ -406,32 +480,114 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
 
     @Override
     public void keyPressed(KeyEvent keyEvent) {
-        //switch para mover al el personaje en forma diagonal
+
         switch (keyEvent.getKeyCode()) {
             //muevo al personaje hacia la izquierda con la flecha izquierda
+
             case KeyEvent.VK_LEFT:
-                iNewX -= 5;
+                if (!boolPause && iVidas > 0) {
+                    iNewX -= 5;
+                }
                 break;
             //muevo al personaje hacia la derecha con la flecha derecha
             case KeyEvent.VK_RIGHT:
-                iNewX += 5;
+                if (!boolPause && iVidas > 0) {
+                    iNewX += 5;
+                }
                 break;
-            //muevo al personaje hacia la izquierda con la flecha izquierda del teclado numerico
+            //muevo al personaje hacia la izquierda con la flecha 
+            //izquierda del teclado numerico
             case KeyEvent.VK_KP_LEFT:
-                iNewX -= 5;
+                if (!boolPause && iVidas > 0) {
+                    iNewX -= 5;
+                }
                 break;
-            //muevo al personaje hacia la derecha con la flecha derecha del teclado numerico
+            //muevo al personaje hacia la derecha con la flecha derecha 
+            //del teclado numerico
             case KeyEvent.VK_KP_RIGHT:
-                iNewX += 5;
+                if (!boolPause && iVidas > 0) {
+                    iNewX += 5;
+                }
+                break;
+            case KeyEvent.VK_SPACE:
+                if (boolDisparar && !boolPause && iVidas > 0) {
+                    lklDisparos.add(new Shot(imaShotNormal, 1,
+                            basPrincipal.getX() + basPrincipal.getAncho() / 2,
+                            basPrincipal.getY() - 10));
+                    boolDisparar = false;
+                }
+                break;
+            case KeyEvent.VK_A:
+                if (boolDisparar && !boolPause && iVidas > 0) {
+                    lklDisparos.add(new Shot(imaShotIzquierda, 3,
+                            basPrincipal.getX() + basPrincipal.getAncho() / 2,
+                            basPrincipal.getY() - 10));
+                    boolDisparar = false;
+                }
+                break;
+            case KeyEvent.VK_S:
+                if (boolDisparar && !boolPause && iVidas > 0) {
+                    lklDisparos.add(new Shot(imaShotDerecha, 2,
+                            basPrincipal.getX() + basPrincipal.getAncho() / 2,
+                            basPrincipal.getY() - 10));
+                    boolDisparar = false;
+                }
                 break;
             default:
                 break;
         }
     }
 
+    /**
+     * KeyReleased Utilizado para dar al usuario otro disparo, i.e reinicia
+     * boolDisparar Y para controlar la pausa
+     *
+     * @param keyEvent
+     */
     @Override
     public void keyReleased(KeyEvent keyEvent) {
-        //este metodo no se utiliza
+        switch (keyEvent.getKeyCode()) {
+            case KeyEvent.VK_SPACE:
+            case KeyEvent.VK_A:
+            case KeyEvent.VK_S:
+                boolDisparar = true;
+                break;
+            case KeyEvent.VK_P:
+                if (iVidas > 0) {
+                    boolPause = !boolPause;
+                    if (boolPause) {
+                        SClipPause.setLooping(true);
+                        SClipPause.play();
+                    } else {
+                        SClipPause.stop();
+                    }
+                }
+                break;
+            case KeyEvent.VK_R:
+                if (iVidas <= 0) {
+                    //se reinician valores
+                    iNewX = 0;
+                    iNewY = 0;
+
+                    // se inicializan las vidas con un valor aleatorio entre 3 y 5.
+                    iVidas = 5;
+
+                    //se inicializan el score y el contador de asteroides
+                    iScore = 0;
+                    iColMalos = 0;
+
+                    //se inicializa la velocidad con la que se mueve el malo
+                    iVelMalo = 1;
+
+                    boolPause = false;
+                    boolDisparar = true;
+                    //se reposiciona
+
+                    posicionInicial();
+                    start();
+                }
+                break;
+        }
     }
 
     public static void main(String[] args) {
