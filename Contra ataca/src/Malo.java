@@ -26,12 +26,34 @@ public class Malo extends Base{
      * @param imaImagen es la <code>imagen</code> del objeto.
      * 
      */
-    public Malo(int iX, int iY, Image imaSprite)
+    private boolean boolType;
+    private int iVel;
+    public Malo(int iX, int iY, Image imaSprite,boolean boolT, int iV)
     {
                 
         super(0,0,imaSprite);
         setX(iX);
         setY(iY);
+        boolType = boolT;
+        iVel = iV;
     }
-
+    public void Mover(int iX,int iY){
+        if(boolType){
+            if(getX()>iX){
+                setX(getX()-iVel);
+            }else if(getX()<iX){
+                setX(getX()+iVel);
+            }
+            if(getY()>iY){
+                setY(getY()-iVel);
+            }else if(getY()<iY){
+                setY(getY()+iVel);
+            }
+        }else{
+            setY(getY()+iVel);
+        }
+    }
+    public void setVel(int iV){
+        iVel = iV;
+    }
 }

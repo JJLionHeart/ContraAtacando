@@ -155,17 +155,33 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         //defino la imagen objeto malo
         URL urlImagenMalo = this.getClass().getResource("enemigo.png");
         //genero aleatoriamente el numero de malos (entre 8 y 10)
-        int iRandomMalos = (int) (Math.random() * 5) + 25;
+        int iRandomMalos = (int) (Math.random() * 6) + 10;
         // Creo los objetos malos
-        for (int iI = 0; iI < iRandomMalos; iI++) {
+        double dEspeciales = iRandomMalos*0.1;
+        int iEspeciales;
+        iEspeciales = (int) Math.round(dEspeciales);
+        
+        System.out.println("Malos: "+iRandomMalos+" especiales: "+iEspeciales);
+        for (int iI = 0; iI < iEspeciales; iI++) { //agregar a los que te siguen
             //creo a cada Malo
             Malo basMalo = new Malo(0, 0,
-                    Toolkit.getDefaultToolkit().getImage(urlImagenMalo));
+                    Toolkit.getDefaultToolkit().getImage(urlImagenMalo)
+                    ,true,iVelMalo);
 
             //agrego a cada malo a la lista.
             lklMalitos.add(basMalo);
         }
+      
+        for (int iI = iEspeciales; iI < iRandomMalos; iI++) {//agregar a los 
+                                                             //normales
+            //creo a cada Malo
+            Malo basMalo = new Malo(0, 0,
+                    Toolkit.getDefaultToolkit().getImage(urlImagenMalo)
+                    ,false,iVelMalo);
 
+            //agrego a cada malo a la lista.
+            lklMalitos.add(basMalo);
+        }
     }
 
     /**
@@ -287,7 +303,8 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
 
             // mueve al enemigo hacia abajo de la pantalla
             for (Malo basMalo : lklMalitos) {
-                basMalo.setY(basMalo.getY() + iVelMalo);
+                basMalo.setVel(iVelMalo);
+                basMalo.Mover(basPrincipal.getX(), basPrincipal.getY());
 
             }
             //se mueven los disparos
