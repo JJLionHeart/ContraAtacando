@@ -31,7 +31,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     private Image imaVidas; //para dibujar a las vidas
     private Image imaShotNormal, imaShotDerecha, imaShotIzquierda; //imagenes de
     //disparos
-    private LinkedList<Base> lklMalitos;       //lista de los malos
+    private LinkedList<Malo> lklMalitos;       //lista de los malos
     private LinkedList<Shot> lklDisparos; // lista de los disparos generados
     /* objetos para manejar el buffer del Applet y 
        que la imagen no parpadee */
@@ -57,7 +57,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     public JFrames() {
 
         //Define el título de la ventana
-        setTitle("It's me Mario!");
+        setTitle("PokemonSlug!");
         //Define la operación que se llevará acabo cuando la ventana sea cerrada.
         // Al cerrar, el programa terminará su ejecución
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -79,7 +79,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      */
     public void init() {
         //Define el tamaño inicial de la ventana
-        setSize(800, 600);
+        setSize(1200, 800);
 
         // se inicializan la velocidad, bCamina y la dirección con un valor default
         iNewX = 0;
@@ -93,10 +93,10 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         iColMalos = 0;
 
         //se inicializa la velocidad con la que se mueve el malo
-        iVelMalo = 1;
+        iVelMalo = 5;
 
         //Creo la lista de los Malos
-        lklMalitos = new LinkedList<Base>();
+        lklMalitos = new LinkedList<Malo>();
 
         //se crea la lista de disparos
         lklDisparos = new LinkedList<Shot>();
@@ -110,7 +110,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         imaImagenGameOver = Toolkit.getDefaultToolkit().getImage(urlImagenGameOver);
 
         // defino la imagen principal
-        URL urlImagenPrincipal = this.getClass().getResource("mariojump.gif");
+        URL urlImagenPrincipal = this.getClass().getResource("principal.png");
 
         //cargar la imagen de las vidas
         URL urlVidas = this.getClass().getResource("heartg.png");
@@ -133,7 +133,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
                 Toolkit.getDefaultToolkit().getImage(urlImagenPrincipal));
 
         //Se crea el sonido del choque con el malo.
-        SClipSonidoMalos = new SoundClip("Choque.wav");
+        SClipSonidoMalos = new SoundClip("pokesound.wav");
         //se inicializa el sonido de pausa
         SClipPause = new SoundClip("Pausa.wav");
         //funcion para inicializar los objetos de las listas
@@ -153,13 +153,13 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      */
     public void initObjetos() {
         //defino la imagen objeto malo
-        URL urlImagenMalo = this.getClass().getResource("block.gif");
+        URL urlImagenMalo = this.getClass().getResource("enemigo.png");
         //genero aleatoriamente el numero de malos (entre 8 y 10)
-        int iRandomMalos = (int) (Math.random() * 3) + 8;
+        int iRandomMalos = (int) (Math.random() * 5) + 25;
         // Creo los objetos malos
         for (int iI = 0; iI < iRandomMalos; iI++) {
             //creo a cada Malo
-            Base basMalo = new Base(0, 0,
+            Malo basMalo = new Malo(0, 0,
                     Toolkit.getDefaultToolkit().getImage(urlImagenMalo));
 
             //agrego a cada malo a la lista.
@@ -185,7 +185,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
         //variables para las posiciones iniciales de los malos.
         int iPosMaloX, iPosMaloY;
         //posiciono a los malos
-        for (Base basMalo : lklMalitos) {
+        for (Malo basMalo : lklMalitos) {
             // Se obtienen valores aleatorios para la X y la Y del asteroide
             iPosMaloX = getWidth() - basMalo.getAncho()
                     - (int) (Math.random() * (getWidth() - basMalo.getAncho()));
@@ -204,7 +204,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
      *
      * reposiciona a los malos
      */
-    public void reposicionaMalo(Base basMalo) {
+    public void reposicionaMalo(Malo basMalo) {
         // variables de la posicion del asteroide
         int iPosMaloX, iPosMaloY;
 
@@ -286,7 +286,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
             basPrincipal.setX(iNewX);
 
             // mueve al enemigo hacia abajo de la pantalla
-            for (Base basMalo : lklMalitos) {
+            for (Malo basMalo : lklMalitos) {
                 basMalo.setY(basMalo.getY() + iVelMalo);
 
             }
@@ -294,9 +294,11 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
             int iSize = lklDisparos.size();
             for (int iC = 0; iC < iSize; iC++) {
                 Shot shoDisparo = lklDisparos.pop();
-                //si el disparo sigue dentro del room se dibuja
-                if (shoDisparo.getX() <= getWidth() && shoDisparo.getX() >= 0
-                        && shoDisparo.getY() <= getHeight() && shoDisparo.getY() >= 0) {
+                //si el disparo sigue dentro del room se dibuja.
+                //se utiliza 50 cuando se checa la pared superior,
+                //  porque el titulo ocupa cierta altura
+                if (shoDisparo.getX() <= getWidth()-shoDisparo.getAncho() && shoDisparo.getX() >= 0
+                        && shoDisparo.getY() <= getHeight() && shoDisparo.getY() >= 50) {
                     shoDisparo.mover();
                     lklDisparos.add(shoDisparo);
 
@@ -317,14 +319,14 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
     public void checaColision() {
         if (!boolPause) {//si no esta en pause el juego
             //checo la colision entre principal y malo
-            for (Base basMalo : lklMalitos) {
+            for (Malo malMalo : lklMalitos) {
 
                 //checo si colisiono el personaje con el malo
-                if (basPrincipal.colisiona(basMalo)) {
+                if (basPrincipal.colisiona(malMalo)) {
                     //se resta un punto
                     iScore--;
                     //reposiciono al malo que choco contra el personaje.
-                    reposicionaMalo(basMalo);
+                    reposicionaMalo(malMalo);
                     //aumento el contador de malos colisionados.
                     iColMalos++;
 
@@ -337,37 +339,21 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
                         iColMalos = 0;
                         //genera un sonido cuando choca con el malo
                         SClipSonidoMalos.play();
-                        iVelMalo++;
+                        iVelMalo = iVelMalo + 5;
                     }
                 }
 
-                //reviso que el malo no se salga por el lado izquierdo del applet
-                if (basMalo.getY() >= getHeight()) {
+                //reviso que el malo no se salga por debajo del applet
+                if (malMalo.getY() >= getHeight()-malMalo.getAlto()) {
                     //reposiciono al malo que se salga de la imagen
-                    reposicionaMalo(basMalo);
-
-                    //aumento el contador de malos colisionados.
-                    iColMalos++;
-
-                    //si la cantidad de malos pasa el limite se pierde una vida
-                    if (iColMalos >= 5) {
-                        //redusco una vida del personaje
-                        iVidas--;
-                        //reseteo el valor del contador de malos 
-                        //para volver a empezar a contar.  
-                        iColMalos = 0;
-                        //genera un sonido cuando choca con el malo
-                        SClipSonidoMalos.play();
-                        iVelMalo++;
-
-                    }
+                    reposicionaMalo(malMalo);
                 }
             }
 
         }
         //se checa la colision entre los misiles y los obstaculos
         for (Shot shoDisparo : lklDisparos) {
-            for (Base basObstaculo : lklMalitos) {
+            for (Malo basObstaculo : lklMalitos) {
                 if (shoDisparo.colisiona(basObstaculo)) {
                     //si hay una colision de este disparo y este obstaculo
                     //se aumenta el puntaje y se "destruyen" ambos objetos
@@ -577,7 +563,7 @@ public class JFrames extends JFrame implements Runnable, KeyListener {
                     iColMalos = 0;
 
                     //se inicializa la velocidad con la que se mueve el malo
-                    iVelMalo = 1;
+                    iVelMalo = 5;
 
                     boolPause = false;
                     boolDisparar = true;
